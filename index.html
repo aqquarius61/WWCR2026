@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PurrRank - 전 세계 고양이 쓰다듬기 랭킹</title>
+  <meta name="description" content="귀여운 고양이들을 쓰다듬고 실시간 글로벌 인기 랭킹을 확인해보세요!">
+  <!-- Google Fonts: Plus Jakarta Sans & Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,600;0,800;1,400&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  <!-- Lucide Icons (CDN) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- 배경 장식용 그라디언트 오브 -->
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <!-- 헤더 (네비게이션 바) -->
+  <header class="main-header">
+    <div class="header-container">
+      <div class="logo" id="logo-btn">
+        <i data-lucide="cat" class="logo-icon"></i>
+        <span class="logo-text">PurrRank</span>
+      </div>
+
+      <nav class="nav-menu">
+        <button id="ranking-toggle-btn" class="btn btn-secondary">
+          <i data-lucide="crown"></i>
+          <span>실시간 랭킹</span>
+        </button>
+        <button id="upload-trigger-btn" class="btn btn-primary">
+          <i data-lucide="plus-circle"></i>
+          <span>고양이 등록</span>
+        </button>
+        <div id="auth-section" class="auth-section">
+          <!-- JS로 상태에 맞게 로그인/로그아웃 버튼 렌더링 -->
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 메인 레이아웃 -->
+  <main class="main-layout">
+    <!-- 고양이 피드 섹션 (Pinterest 스타일 Masonry) -->
+    <section class="feed-section">
+      <div class="feed-header">
+        <h1 class="feed-title">전 세계 고양이 광장</h1>
+        <p class="feed-subtitle">로그인 후 고양이 사진을 마우스나 터치로 문질러서 쓰다듬어 주세요! 💕</p>
+      </div>
+      <div id="cat-grid" class="cat-grid">
+        <!-- JS로 고양이 카드들이 렌더링됨 -->
+      </div>
+    </section>
+
+    <!-- 실시간 랭킹 사이드바 (데스크톱에서는 우측 고정 가능, 모바일/태블릿에서는 드로어로 작동) -->
+    <aside id="ranking-sidebar" class="ranking-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">
+          <i data-lucide="trophy" class="ranking-icon"></i>
+          <h2>실시간 인기 랭킹</h2>
+        </div>
+        <button id="close-ranking-btn" class="btn-close">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="ranking-podium" id="ranking-podium">
+        <!-- 1, 2, 3위 고양이 특별 구역 -->
+      </div>
+      <div class="ranking-list" id="ranking-list">
+        <!-- 4위 이하 고양이 리스트 -->
+      </div>
+    </aside>
+  </main>
+
+  <!-- 푸터 및 오디오 컨트롤 -->
+  <footer class="main-footer">
+    <p>&copy; 2026 PurrRank. All rights reserved.</p>
+    <div class="sound-control">
+      <button id="sound-toggle-btn" class="btn-sound-toggle" title="효과음 켜기/끄기">
+        <i data-lucide="volume-2" id="sound-icon"></i>
+      </button>
+    </div>
+  </footer>
+
+  <!-- 모달: 로그인/회원가입 -->
+  <div id="auth-modal" class="modal-overlay hidden">
+    <div class="modal-content glassmorphism">
+      <button class="modal-close" id="close-auth-modal">
+        <i data-lucide="x"></i>
+      </button>
+      <div class="modal-body">
+        <!-- 탭 네비게이션 -->
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-login">로그인</button>
+          <button class="auth-tab" id="tab-signup">회원가입</button>
+        </div>
+
+        <!-- 로그인 폼 -->
+        <form id="login-form" class="auth-form">
+          <div class="form-group">
+            <label for="login-username">사용자 아이디</label>
+            <div class="input-wrapper">
+              <i data-lucide="user"></i>
+              <input type="text" id="login-username" placeholder="아이디를 입력하세요" required autocomplete="username">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="login-password">비밀번호</label>
+            <div class="input-wrapper">
+              <i data-lucide="lock"></i>
+              <input type="password" id="login-password" placeholder="비밀번호를 입력하세요" required autocomplete="current-password">
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">로그인하기</button>
+        </form>
+
+        <!-- 회원가입 폼 -->
+        <form id="signup-form" class="auth-form hidden">
+          <div class="form-group">
+            <label for="signup-nickname">닉네임 (활동명)</label>
+            <div class="input-wrapper">
+              <i data-lucide="smile"></i>
+              <input type="text" id="signup-nickname" placeholder="닉네임을 입력하세요" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="signup-username">사용자 아이디</label>
+            <div class="input-wrapper">
+              <i data-lucide="user"></i>
+              <input type="text" id="signup-username" placeholder="사용할 아이디" required autocomplete="username">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="signup-password">비밀번호</label>
+            <div class="input-wrapper">
+              <i data-lucide="lock"></i>
+              <input type="password" id="signup-password" placeholder="비밀번호 설정" required autocomplete="new-password">
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">가입 완료하기</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 모달: 고양이 등록 -->
+  <div id="upload-modal" class="modal-overlay hidden">
+    <div class="modal-content glassmorphism">
+      <button class="modal-close" id="close-upload-modal">
+        <i data-lucide="x"></i>
+      </button>
+      <div class="modal-body">
+        <h2 class="modal-title">나의 고양이 자랑하기</h2>
+        <p class="modal-subtitle">귀여운 고양이 사진을 올려서 전 세계 집사들에게 자랑해보세요!</p>
+
+        <form id="upload-form" class="upload-form">
+          <div class="form-group">
+            <label>고양이 사진 업로드</label>
+            <div class="file-dropzone" id="file-dropzone">
+              <input type="file" id="cat-image-input" accept="image/*" required class="hidden-input">
+              <div class="dropzone-content" id="dropzone-content">
+                <i data-lucide="image-plus" class="dropzone-icon"></i>
+                <p>클릭하여 고양이 이미지를 선택하거나 드래그해 놓으세요.</p>
+                <span>JPEG, PNG, WebP 지원 (최대 5MB)</span>
+              </div>
+              <div class="dropzone-preview hidden" id="dropzone-preview">
+                <img id="image-preview-element" src="" alt="업로드 이미지 미리보기">
+                <button type="button" class="btn-remove-image" id="btn-remove-image">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="cat-name">고양이 이름</label>
+            <div class="input-wrapper">
+              <input type="text" id="cat-name" placeholder="귀여운 이름을 지어주세요" required maxlength="15">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="cat-breed">고양이 품종</label>
+            <div class="input-wrapper">
+              <input type="text" id="cat-breed" placeholder="예: 코리안 숏헤어, 페르시안 (선택사항)" maxlength="20">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="cat-desc">고양이 소개 (한 줄 설명)</label>
+            <div class="input-wrapper">
+              <textarea id="cat-desc" placeholder="고양이의 매력 포인트를 설명해주세요!" required maxlength="100" rows="3"></textarea>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block">우주 최강 고양이 등록!</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 매크로 경고 시스템 레이어 -->
+  <div id="macro-warning" class="macro-warning hidden">
+    <div class="macro-warning-content">
+      <i data-lucide="shield-alert" class="warning-icon"></i>
+      <h3>매크로 감지 및 비정상 입력 차단</h3>
+      <p>앗! 고양이가 너무 빠른 손길에 놀랐어요 😿<br>단순 광클이나 자동 매크로 대신 마우스로 부드럽게 문질러서 쓰다듬어 주세요.</p>
+      <button id="macro-confirm-btn" class="btn btn-warning">알겠어요, 부드럽게 쓰다듬을게요</button>
+    </div>
+  </div>
+
+  <!-- 토스트 알림 컨테이너 (로그인 환영, 경고 등용) -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Core App Logic (ES Module) -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
