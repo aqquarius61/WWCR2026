@@ -160,27 +160,18 @@ function renderCatGrid() {
     card.innerHTML = `
       <div class="pet-zone" data-id="${cat.id}">
         <img src="${cat.image}" class="cat-image" alt="${cat.name}">
+        <!-- 하트 수 플로팅 뱃지 (오른쪽 아래) -->
+        <div class="pet-badge">
+          <i data-lucide="heart" class="heart-icon"></i>
+          <span class="pet-stat-count" id="count-${cat.id}">${cat.petCount.toLocaleString()}</span>
+        </div>
         <div class="pet-hint">
           <i data-lucide="sparkles"></i>
           <span>문질러서 쓰다듬기</span>
         </div>
       </div>
       <div class="cat-info">
-        <div class="cat-name-row">
-          <h3 class="cat-card-name">${escapeHTML(cat.name)}</h3>
-          ${cat.breed ? `<span class="cat-breed-tag">${escapeHTML(cat.breed)}</span>` : ''}
-        </div>
-        <p class="cat-card-desc">${escapeHTML(cat.description)}</p>
-        <div class="pet-counter">
-          <div class="pet-stat">
-            <i data-lucide="heart" class="heart-icon"></i>
-            <span class="pet-stat-count" id="count-${cat.id}">${cat.petCount.toLocaleString()}</span>
-          </div>
-          <button class="pet-action-btn" data-id="${cat.id}">
-            <i data-lucide="smile"></i>
-            <span>쓰다듬어주기</span>
-          </button>
-        </div>
+        <h3 class="cat-card-name">${escapeHTML(cat.name)}</h3>
       </div>
     `;
 
@@ -758,30 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
     lastPetTimes = []; // 타임스탬프 리셋
   });
 
-  // 9-11. 피드 카드 내의 "쓰다듬어주기" 버튼 클릭 이벤트 위임
-  document.getElementById('cat-grid').addEventListener('click', (e) => {
-    const btn = e.target.closest('.pet-action-btn');
-    if (btn) {
-      if (!currentUser) {
-        showToast('로그인이 필요한 기능입니다!', 'warning');
-        openModal(document.getElementById('auth-modal'));
-        return;
-      }
-      const catId = btn.dataset.id;
-      // 버튼은 마우스 궤적이 없으므로 마우스 중심 기준 대략 좌표 계산하여 이펙트 생성
-      const rect = btn.getBoundingClientRect();
-      const x = rect.left + rect.width / 2;
-      const y = rect.top + rect.height / 2;
-
-      // 쓰다듬기 실행 (Throttling 속도 체크)
-      const now = Date.now();
-      if (detectMacroPattern(now)) {
-        triggerMacroBlock();
-        return;
-      }
-      triggerPet(catId, x, y);
-    }
-  });
+  // (미니멀 UI 개편으로 버튼 클릭 쓰다듬기가 제외되어 드래그 입력만 처리합니다.)
 
   // 로고 누르면 맨 위로 스크롤
   document.getElementById('logo-btn').addEventListener('click', () => {
