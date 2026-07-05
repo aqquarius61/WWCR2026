@@ -255,11 +255,13 @@ body {
 /* 4. 고양이 카드 스타일 (미니멀 화이트 버전) */
 .cat-card {
   break-inside: avoid;
-  display: inline-flex;
-  flex-direction: column;
+  display: block;
   width: 100%;
   margin-bottom: 20px;
   position: relative;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 /* 쓰다듬기 캔버스 영역 (사진에 직접 액자와 테두리 씌우기) */
@@ -272,7 +274,7 @@ body {
   user-select: none;
   touch-action: none; /* 터치 디바이스 스크롤 간섭 방지 */
   border-radius: 16px;
-  background: var(--bg-card);
+  background: transparent; /* 배경을 투명하게 설정하여 흰색 빈틈 노출 원천 차단 */
   border: 1px solid var(--border-glass);
   box-shadow: var(--shadow-premium);
   transition: var(--transition-spring);
