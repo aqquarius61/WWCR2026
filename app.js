@@ -249,7 +249,7 @@ function renderCatGrid() {
 
     card.innerHTML = `
       <div class="pet-zone" data-id="${cat.id}">
-        <img src="${cat.image_url}" class="cat-image" alt="${cat.name}">
+        <img src="${cat.image_url}" class="cat-image" alt="${cat.name}" draggable="false">
         <!-- 하트 수 플로팅 뱃지 (오른쪽 아래) -->
         <div class="pet-badge">
           <i data-lucide="heart" class="heart-icon"></i>
@@ -339,6 +339,9 @@ function setupPetInteraction(petZone, catId) {
   let lastY = 0;
   let distanceAccumulator = 0;
   let lastPetTriggerTime = 0;
+
+  // 이미지 자체의 브라우저 기본 드래그 앤 드롭 기능 차단
+  petZone.addEventListener('dragstart', (e) => e.preventDefault());
 
   // 비로그인 유저가 단순 터치/클릭했을 때도 확실하게 로그인 창이 뜨도록 보강
   petZone.addEventListener('click', (e) => {
