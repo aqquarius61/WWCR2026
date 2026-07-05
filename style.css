@@ -355,14 +355,25 @@ body {
   opacity: 1;
 }
 
-/* 고양이 카드 바디 (이름만 깔끔하게 보이기) */
-.cat-info {
-  padding: 14px 18px;
-  background: #ffffff;
-  text-align: left;
+/* 고양이 이름 플로팅 뱃지 (왼쪽 아래) */
+.cat-name-badge {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 6px 12px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+  pointer-events: none;
 }
 .cat-card-name {
-  font-size: 1.05rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: #1a1c24;
 }

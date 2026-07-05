@@ -250,6 +250,10 @@ function renderCatGrid() {
     card.innerHTML = `
       <div class="pet-zone" data-id="${cat.id}">
         <img src="${cat.image_url}" class="cat-image" alt="${cat.name}" draggable="false">
+        <!-- 이름 플로팅 뱃지 (왼쪽 아래) -->
+        <div class="cat-name-badge">
+          <span class="cat-card-name">${escapeHTML(cat.name)}</span>
+        </div>
         <!-- 하트 수 플로팅 뱃지 (오른쪽 아래) -->
         <div class="pet-badge">
           <i data-lucide="heart" class="heart-icon"></i>
@@ -259,9 +263,6 @@ function renderCatGrid() {
           <i data-lucide="sparkles"></i>
           <span>터치하여 쓰다듬기</span>
         </div>
-      </div>
-      <div class="cat-info">
-        <h3 class="cat-card-name">${escapeHTML(cat.name)}</h3>
       </div>
     `;
 
