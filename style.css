@@ -292,6 +292,7 @@ body {
   overflow: hidden;
   cursor: grab;
   user-select: none;
+  touch-action: none; /* 터치 디바이스 스크롤 간섭 방지 */
 }
 .pet-zone:active {
   cursor: grabbing;
