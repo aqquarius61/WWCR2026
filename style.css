@@ -259,23 +259,10 @@ body {
   flex-direction: column;
   width: 100%;
   margin-bottom: 20px;
-  border-radius: 16px;
-  overflow: hidden;
-  background: var(--bg-card);
-  border: 1px solid var(--border-glass);
-  transition: var(--transition-spring);
   position: relative;
-  box-shadow: var(--shadow-premium);
-  will-change: transform, box-shadow;
 }
 
-.cat-card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--shadow-hover);
-  border-color: rgba(134, 68, 255, 0.2);
-}
-
-/* 쓰다듬기 캔버스 영역 */
+/* 쓰다듬기 캔버스 영역 (사진에 직접 액자와 테두리 씌우기) */
 .pet-zone {
   position: relative;
   width: 100%;
@@ -284,10 +271,23 @@ body {
   cursor: grab;
   user-select: none;
   touch-action: none; /* 터치 디바이스 스크롤 간섭 방지 */
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-premium);
+  transition: var(--transition-spring);
+  will-change: transform, box-shadow;
 }
 .pet-zone:active {
   cursor: grabbing;
 }
+
+.cat-card:hover .pet-zone {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-hover);
+  border-color: rgba(134, 68, 255, 0.2);
+}
+
 .cat-image {
   width: 100%;
   height: 100%;
