@@ -259,10 +259,6 @@ function renderCatGrid() {
           <i data-lucide="heart" class="heart-icon"></i>
           <span class="pet-stat-count" id="count-${cat.id}">${cat.pet_count.toLocaleString()}</span>
         </div>
-        <div class="pet-hint">
-          <i data-lucide="sparkles"></i>
-          <span>터치하여 쓰다듬기</span>
-        </div>
       </div>
     `;
 
