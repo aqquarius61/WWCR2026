@@ -367,20 +367,29 @@ body {
   color: #1a1c24;
 }
 
-/* 5. 실시간 랭킹 사이드바 (화이트 버전) */
+/* 5. 실시간 랭킹 사이드바 (슬라이딩 드로어 버전) */
 .ranking-sidebar {
-  width: 340px;
-  border-radius: 20px;
+  width: 360px;
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 20px 0 0 20px;
+  z-index: 200;
   background: #ffffff;
-  border: 1px solid var(--border-glass);
-  padding: 20px;
+  border-left: 1px solid var(--border-glass);
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 120px);
-  position: sticky;
-  top: 90px;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s;
-  box-shadow: var(--shadow-premium);
+  transform: translateX(105%);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.03);
+}
+
+.ranking-sidebar.open {
+  transform: translateX(0);
+  box-shadow: -15px 0 40px rgba(0, 0, 0, 0.08);
 }
 
 .sidebar-header {
@@ -564,22 +573,7 @@ body {
   font-size: 0.85rem;
 }
 
-/* 모바일 랭킹 사이드바 애니메이션 토글용 */
-@media (max-width: 1000px) {
-  .ranking-sidebar {
-    position: fixed;
-    top: 0;
-    right: 0;
-    height: 100vh;
-    max-height: 100vh;
-    border-radius: 20px 0 0 20px;
-    z-index: 200;
-    transform: translateX(105%);
-  }
-  .ranking-sidebar.open {
-    transform: translateX(0);
-  }
-}
+/* (모든 기기에서 드로어로 통합 작동하므로 모바일 덮어쓰기 코드를 삭제합니다) */
 
 /* 6. 푸터 및 오디오 컨트롤 */
 .main-footer {
