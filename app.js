@@ -340,10 +340,22 @@ function setupPetInteraction(petZone, catId) {
   let distanceAccumulator = 0;
   let lastPetTriggerTime = 0;
 
+  // 비로그인 유저가 단순 터치/클릭했을 때도 확실하게 로그인 창이 뜨도록 보강
+  petZone.addEventListener('click', (e) => {
+    if (!currentUser) {
+      e.preventDefault();
+      e.stopPropagation();
+      showToast('로그인이 필요한 기능입니다!', 'warning');
+      openModal(document.getElementById('auth-modal'));
+    }
+  });
+
   // 마우스/터치 시작
   petZone.addEventListener('pointerdown', (e) => {
     // 로그인 체크
     if (!currentUser) {
+      e.preventDefault();
+      e.stopPropagation();
       showToast('로그인이 필요한 기능입니다!', 'warning');
       openModal(document.getElementById('auth-modal'));
       return;
