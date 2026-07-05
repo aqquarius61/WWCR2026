@@ -182,12 +182,10 @@ body {
   filter: drop-shadow(0 2px 4px rgba(255, 82, 124, 0.2));
 }
 .logo-text {
-  font-size: 1.45rem;
+  font-size: 1.4rem;
   font-weight: 800;
   letter-spacing: -0.5px;
-  background: var(--gradient-main);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #11131a; /* 검은색 글자 */
 }
 
 .nav-menu {
@@ -226,19 +224,6 @@ body {
   flex: 1;
   min-width: 0;
 }
-.feed-header {
-  margin-bottom: 24px;
-}
-.feed-title {
-  font-size: 1.8rem;
-  font-weight: 800;
-  margin-bottom: 6px;
-  color: #11131a;
-}
-.feed-subtitle {
-  color: var(--text-muted);
-  font-size: 0.95rem;
-}
 
 /* 핀터레스트 스타일 다이내믹 그리드 */
 .cat-grid {
@@ -258,6 +243,12 @@ body {
   }
   .main-layout {
     padding: 16px;
+  }
+  .logo-text {
+    font-size: 0.95rem; /* 긴 로고명을 모바일에서 보완 */
+  }
+  .header-container {
+    padding: 10px 16px;
   }
 }
 
