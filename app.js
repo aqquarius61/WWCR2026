@@ -1,6 +1,13 @@
 import { initialCats } from './cats-data.js';
 
 // ==========================================
+// 0. Supabase 클라이언트 초기화
+// ==========================================
+const SUPABASE_URL = 'https://mawaaenlnghpjgmkiyyo.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hd2FhZW5sbmdocGpnbWtpeXlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNTI0MzgsImV4cCI6MjA5ODgyODQzOH0.Xu-Ah9KYKKPjPtr6NhkYnfZehrU-VVCiU9b-R0mwcbU';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ==========================================
 // 1. 상태 및 상수 관리
 // ==========================================
 let cats = [];
@@ -15,18 +22,9 @@ const MACRO_CHECK_WINDOW = 10; // 분석할 최근 입력 개수
 const MACRO_THRESHOLD_SPEED = 8; // 초당 8회 초과 입력 시 차단
 
 // ==========================================
-// 2. 초기 데이터 로드 및 로컬스토리지 동기화
+// 2. 초기 데이터 로드 및 Supabase 연동
 // ==========================================
-function initApp() {
-  // 고양이 데이터 로드
-  const storedCats = localStorage.getItem('purr_cats');
-  if (storedCats) {
-    cats = JSON.parse(storedCats);
-  } else {
-    cats = [...initialCats];
-    localStorage.setItem('purr_cats', JSON.stringify(cats));
-  }
-
+async function initApp() {
   // 사용자 세션 로드
   const storedUser = localStorage.getItem('purr_user');
   if (storedUser) {
@@ -40,12 +38,105 @@ function initApp() {
     updateSoundIcon();
   }
 
+  // 1. 실시간 DB 변경사항 감지 채널 오픈
+  setupRealtimeSubscription();
+
+  // 2. 서버에서 고양이 목록 조회 및 렌더링
+  await fetchCats();
+
   updateAuthUI();
-  renderCatGrid();
-  renderLeaderboard();
   
   // Lucide 아이콘 렌더링
   lucide.createIcons();
+}
+
+// 2-1. Supabase 고양이 데이터 조회
+async function fetchCats() {
+  try {
+    const { data, error } = await supabase
+      .from('cats')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // 만약 데이터베이스가 완전히 비어있다면 초기 Seed 데이터 등록(마이그레이션) 실행
+    if (!data || data.length === 0) {
+      await seedDefaultCats();
+    } else {
+      cats = data;
+      renderCatGrid();
+      renderLeaderboard();
+    }
+  } catch (err) {
+    console.error('고양이 데이터를 가져오는데 실패했습니다:', err);
+    showToast('서버 데이터 로드 실패 😿', 'error');
+  }
+}
+
+// 2-2. 최초 마이그레이션 (DB가 비어있을 때 로컬 씨드 데이터 삽입)
+async function seedDefaultCats() {
+  const seedData = initialCats.map(cat => ({
+    id: cat.id,
+    name: cat.name,
+    image_url: cat.image, // mapping
+    pet_count: cat.petCount, // mapping
+    owner: cat.owner
+  }));
+
+  const { data, error } = await supabase
+    .from('cats')
+    .insert(seedData)
+    .select();
+
+  if (error) {
+    console.error('Seed 데이터 구축 실패:', error);
+    showToast('기본 데이터 초기화 실패', 'error');
+  } else {
+    cats = data;
+    renderCatGrid();
+    renderLeaderboard();
+    showToast('기본 고양이 도감이 원격 데이터베이스에 연동되었습니다!', 'success');
+  }
+}
+
+// 2-3. Supabase Realtime 채널 실시간 수신 구독
+function setupRealtimeSubscription() {
+  supabase
+    .channel('cats-realtime-channel')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'cats' }, (payload) => {
+      const eventType = payload.eventType;
+      const newRow = payload.new;
+      const oldRow = payload.old;
+
+      if (eventType === 'INSERT') {
+        // 이미 들어와있는 고양이가 아닐 때에만 앞에 삽입
+        if (!cats.some(c => c.id === newRow.id)) {
+          cats.unshift(newRow);
+          renderCatGrid();
+          renderLeaderboard();
+        }
+      } else if (eventType === 'UPDATE') {
+        const cat = cats.find(c => c.id === newRow.id);
+        if (cat) {
+          cat.pet_count = newRow.pet_count;
+          
+          // 숫자가 든 노드만 빠른 직접 업데이트 (성능 극대화)
+          const countEl = document.getElementById(`count-${newRow.id}`);
+          if (countEl) {
+            countEl.innerText = newRow.pet_count.toLocaleString();
+          }
+          
+          // 랭킹 판 업데이트
+          renderLeaderboard();
+        }
+      } else if (eventType === 'DELETE') {
+        cats = cats.filter(c => c.id === oldRow.id);
+        renderCatGrid();
+        renderLeaderboard();
+      }
+    })
+    .subscribe();
 }
 
 // ==========================================
@@ -78,7 +169,6 @@ function playMeowSound() {
   const gainNode = audioCtx.createGain();
   
   // 야옹 소리의 피치 벤딩 (시간에 따른 주파수 상승 및 하강)
-  // "미아오우" 느낌을 주기 위해 350Hz -> 650Hz -> 450Hz로 급격히 휘어짐
   osc.frequency.setValueAtTime(320, now);
   osc.frequency.exponentialRampToValueAtTime(680, now + 0.12);
   osc.frequency.exponentialRampToValueAtTime(450, now + 0.35);
@@ -159,11 +249,11 @@ function renderCatGrid() {
 
     card.innerHTML = `
       <div class="pet-zone" data-id="${cat.id}">
-        <img src="${cat.image}" class="cat-image" alt="${cat.name}">
+        <img src="${cat.image_url}" class="cat-image" alt="${cat.name}">
         <!-- 하트 수 플로팅 뱃지 (오른쪽 아래) -->
         <div class="pet-badge">
           <i data-lucide="heart" class="heart-icon"></i>
-          <span class="pet-stat-count" id="count-${cat.id}">${cat.petCount.toLocaleString()}</span>
+          <span class="pet-stat-count" id="count-${cat.id}">${cat.pet_count.toLocaleString()}</span>
         </div>
         <div class="pet-hint">
           <i data-lucide="sparkles"></i>
@@ -186,7 +276,7 @@ function renderCatGrid() {
 // 4-2. 실시간 랭킹 보드 렌더링 (Podium + List)
 function renderLeaderboard() {
   // 복사본을 만들어 점수 내림차순 정렬
-  const sorted = [...cats].sort((a, b) => b.petCount - a.petCount);
+  const sorted = [...cats].sort((a, b) => b.pet_count - a.pet_count);
   
   // 1, 2, 3위 포디움 렌더링
   const podiumContainer = document.getElementById('ranking-podium');
@@ -201,18 +291,17 @@ function renderLeaderboard() {
       <div class="podium-spot spot-${rankName}" dataset-id="${cat.id}">
         <div class="podium-avatar">
           <div class="podium-crown">${trophyIcon}</div>
-          <img src="${cat.image}" alt="${cat.name}">
+          <img src="${cat.image_url}" alt="${cat.name}">
         </div>
         <div class="podium-step">
           <span>${rankNum}</span>
         </div>
         <span class="podium-name">${escapeHTML(cat.name)}</span>
-        <span class="podium-score">${cat.petCount.toLocaleString()} P</span>
+        <span class="podium-score">${cat.pet_count.toLocaleString()} P</span>
       </div>
     `;
   };
 
-  // 1등, 2등, 3등 단상 꽂기 (CSS flex order로 배치 조정됨)
   podiumContainer.innerHTML += createPodiumSpot(top3[0], '1st', '👑', '1');
   podiumContainer.innerHTML += createPodiumSpot(top3[1], '2nd', '🥈', '2');
   podiumContainer.innerHTML += createPodiumSpot(top3[2], '3rd', '🥉', '3');
@@ -230,13 +319,12 @@ function renderLeaderboard() {
     item.innerHTML = `
       <span class="ranking-rank">${rank}</span>
       <div class="ranking-avatar">
-        <img src="${cat.image}" alt="${cat.name}">
+        <img src="${cat.image_url}" alt="${cat.name}">
       </div>
       <div class="ranking-info">
         <div class="ranking-name">${escapeHTML(cat.name)}</div>
-        <div class="ranking-breed">${escapeHTML(cat.breed || '일반 고양이')}</div>
       </div>
-      <div class="ranking-score">${cat.petCount.toLocaleString()} P</div>
+      <div class="ranking-score">${cat.pet_count.toLocaleString()} P</div>
     `;
     listContainer.appendChild(item);
   });
@@ -265,7 +353,7 @@ function setupPetInteraction(petZone, catId) {
     lastX = e.clientX;
     lastY = e.clientY;
     distanceAccumulator = 0;
-    petZone.releasePointerCapture(e.pointerId); // 캡처링 해제하여 외부 드래그 원활화
+    petZone.releasePointerCapture(e.pointerId); // 캡처링 해제
   });
 
   // 드래그 진행 중 (문지르는 행위 감지)
@@ -284,28 +372,26 @@ function setupPetInteraction(petZone, catId) {
     if (distanceAccumulator >= 70) {
       const now = Date.now();
       
-      // 1. Throttling 매크로 검증: 입력 간격 체크
+      // 1. Throttling 매크로 검증
       if (now - lastPetTriggerTime < PET_RATE_LIMIT_MS) {
-        // 너무 빠른 스피드는 누적만 차단
         distanceAccumulator = 0;
         return;
       }
 
-      // 2. 기계식 오토 마우스 탐지: 입력 간격들의 분산 분석
+      // 2. 기계식 오토 마우스 패턴 분석
       if (detectMacroPattern(now)) {
         isDragging = false;
         triggerMacroBlock();
         return;
       }
 
-      // 쓰다듬기 승인
+      // 쓰다듬기 실행
       triggerPet(catId, e.clientX, e.clientY);
       lastPetTriggerTime = now;
       distanceAccumulator = 0;
     }
   });
 
-  // 마우스/터치 끝
   const stopDragging = () => {
     isDragging = false;
     distanceAccumulator = 0;
@@ -320,7 +406,6 @@ function setupPetInteraction(petZone, catId) {
 function detectMacroPattern(now) {
   lastPetTimes.push(now);
   
-  // 윈도우 크기 제한
   if (lastPetTimes.length > MACRO_CHECK_WINDOW) {
     lastPetTimes.shift();
   }
@@ -329,15 +414,12 @@ function detectMacroPattern(now) {
     const firstTime = lastPetTimes[0];
     const lastTime = lastPetTimes[lastPetTimes.length - 1];
     const durationSec = (lastTime - firstTime) / 1000;
-    
-    // 평균 초당 입력 속도 계산
     const speed = lastPetTimes.length / durationSec;
     
     if (speed > MACRO_THRESHOLD_SPEED) {
-      return true; // 매크로 확정
+      return true; // 너무 빠르면 차단
     }
 
-    // 시간 간격의 규칙성 분석 (오토클릭 매크로는 시간 지연이 매우 일정함)
     let intervals = [];
     for (let i = 1; i < lastPetTimes.length; i++) {
       intervals.push(lastPetTimes[i] - lastPetTimes[i - 1]);
@@ -345,20 +427,17 @@ function detectMacroPattern(now) {
     const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length;
     const variance = intervals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / intervals.length;
 
-    // 만약 사람이 움직이는데 밀리초 간격 편차(표준편차)가 3ms 이하다? 기계적인 매크로
     if (Math.sqrt(variance) < 3.5) {
-      return true;
+      return true; // 기계적 입력 차단
     }
   }
   return false;
 }
 
-// 5-2. 매크로 감지 시 차단 화면 활성화
 function triggerMacroBlock() {
   const warning = document.getElementById('macro-warning');
   warning.classList.remove('hidden');
   
-  // 경고음
   if (!isMuted) {
     initAudio();
     const osc = audioCtx.createOscillator();
@@ -375,40 +454,46 @@ function triggerMacroBlock() {
   }
 }
 
-// 5-3. 쓰다듬기 실행 (카운트 증가, 효과음, 이펙트 생성)
-function triggerPet(catId, clientX, clientY) {
+// 5-3. 쓰다듬기 실행 (Supabase DB 연동)
+async function triggerPet(catId, clientX, clientY) {
   const cat = cats.find(c => c.id === catId);
   if (!cat) return;
 
-  // 데이터 누적
-  cat.petCount += 1;
-  localStorage.setItem('purr_cats', JSON.stringify(cats));
-
-  // 화면 카운터 갱신 (리렌더링 부하를 줄이기 위해 해당 숫자 노드만 직접 수정)
+  const nextCount = cat.pet_count + 1;
+  
+  // 1. 선반응 UI 업데이트 (Optimistic UI)
+  cat.pet_count = nextCount;
   const countEl = document.getElementById(`count-${catId}`);
   if (countEl) {
-    countEl.innerText = cat.petCount.toLocaleString();
+    countEl.innerText = nextCount.toLocaleString();
   }
 
-  // 오디오 재생 (야옹 소리 25%, 골골 소리 75% 확률로 사운드 다양화)
+  // 2. Supabase DB에 점수 업데이트 날리기 (비동기 처리)
+  supabase
+    .from('cats')
+    .update({ pet_count: nextCount })
+    .eq('id', catId)
+    .then(({ error }) => {
+      if (error) console.error('하트 원격 갱신 실패:', error);
+    });
+
+  // 오디오 재생
   if (Math.random() < 0.2) {
     playMeowSound();
   } else {
     playPurrSound();
   }
 
-  // 화면 랭킹 실시간 업데이트
+  // 실시간 랭킹 보드 업데이트
   renderLeaderboard();
 
-  // 문지른 좌표 기준으로 파티클 및 파동(Wave) 생성
+  // 하트 파티클 및 파동 효과
   createPetEffects(clientX, clientY);
 }
 
-// 5-4. 쓰다듬기 파티클 및 잔상 이펙트
 function createPetEffects(x, y) {
   const container = document.body;
 
-  // 1. 골골 파동(Ripple) 효과
   const ripple = document.createElement('div');
   ripple.className = 'purr-ripple';
   ripple.style.left = `${x}px`;
@@ -417,7 +502,6 @@ function createPetEffects(x, y) {
   
   setTimeout(() => ripple.remove(), 800);
 
-  // 2. 하트/반짝이 파티클 생성 (2~3개)
   const particles = ['💖', '❤️', '🐾', '✨'];
   const count = 2 + Math.floor(Math.random() * 2);
 
@@ -428,7 +512,6 @@ function createPetEffects(x, y) {
     p.style.left = `${x}px`;
     p.style.top = `${y + window.scrollY}px`;
 
-    // 랜덤 발사 궤적 값 설정 (CSS 변수로 활용)
     const tx = (Math.random() - 0.5) * 120;
     const ty = -60 - Math.random() * 100;
     const scale = 0.6 + Math.random() * 0.8;
@@ -461,14 +544,11 @@ function updateAuthUI() {
       <button id="logout-btn" class="btn btn-secondary">로그아웃</button>
     `;
     
-    // 로그아웃 버튼 이벤트 리스너
     document.getElementById('logout-btn').addEventListener('click', () => {
       currentUser = null;
       localStorage.removeItem('purr_user');
       updateAuthUI();
       showToast('로그아웃되었습니다.', 'success');
-      
-      // 로그아웃 시 피드 다시 그리기 (본인 고양이 여부 등 표시 갱신)
       renderCatGrid();
     });
   } else {
@@ -485,9 +565,9 @@ function updateAuthUI() {
 }
 
 // ==========================================
-// 7. 이미지 업로드 처리 (Base64 변환)
+// 7. 이미지 업로드 처리 (Supabase Storage & 리사이징)
 // ==========================================
-function handleCatUpload(e) {
+async function handleCatUpload(e) {
   e.preventDefault();
   
   if (!currentUser) {
@@ -496,8 +576,6 @@ function handleCatUpload(e) {
   }
 
   const nameInput = document.getElementById('cat-name');
-  const breedInput = document.getElementById('cat-breed');
-  const descInput = document.getElementById('cat-desc');
   const fileInput = document.getElementById('cat-image-input');
 
   const file = fileInput.files[0];
@@ -506,43 +584,102 @@ function handleCatUpload(e) {
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = function(event) {
-    const base64Image = event.target.result;
+  showToast('고양이 사진을 서버에 저장 중입니다... ⏳', 'warning');
+  
+  try {
+    // 1. HTML5 Canvas를 활용하여 이미지 크기를 최대 너비 600px로 압축
+    const compressedBlob = await compressImage(file, 600, 0.8);
     
+    // 2. Supabase Storage 'cat-images' 버킷에 파일 업로드
+    const fileExt = 'jpg';
+    const fileName = `cat_${Date.now()}.${fileExt}`;
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('cat-images')
+      .upload(fileName, compressedBlob, {
+        contentType: 'image/jpeg'
+      });
+
+    if (uploadError) throw uploadError;
+
+    // 3. 업로드된 파일의 Public URL 획득
+    const { data: urlData } = supabase.storage
+      .from('cat-images')
+      .getPublicUrl(fileName);
+      
+    const publicUrl = urlData.publicUrl;
+
+    // 4. Supabase DB 'cats' 테이블에 새로운 고양이 행 삽입
     const newCat = {
       id: 'cat_' + Date.now(),
       name: nameInput.value.trim(),
-      breed: breedInput.value.trim() || '일반 고양이',
-      description: descInput.value.trim(),
-      image: base64Image,
-      petCount: 0,
+      image_url: publicUrl,
+      pet_count: 0,
       owner: currentUser.username
     };
 
-    // 로컬 데이터 추가 및 저장
-    cats.unshift(newCat); // 최신 글이 맨 처음에 오도록
-    localStorage.setItem('purr_cats', JSON.stringify(cats));
+    const { error: dbError } = await supabase
+      .from('cats')
+      .insert([newCat]);
 
-    // 화면 갱신
-    renderCatGrid();
-    renderLeaderboard();
-    
+    if (dbError) throw dbError;
+
     // 폼 초기화 및 모달 닫기
     document.getElementById('upload-form').reset();
     removeUploadPreview();
     closeModal(document.getElementById('upload-modal'));
     
-    showToast(`${newCat.name} 고양이가 등록되었습니다! 🎉`, 'success');
-  };
-  
-  reader.readAsDataURL(file);
+    showToast(`${newCat.name} 고양이가 실시간 광장에 등록되었습니다! 🎉`, 'success');
+    
+    // 강제 조회 갱신
+    await fetchCats();
+  } catch (error) {
+    console.error('고양이 업로드 실패:', error);
+    showToast('등록 실패! Storage 버킷 설정이나 테이블 컬럼을 확인해 주세요.', 'error');
+  }
+}
+
+// Canvas 기반 이미지 리사이징 & JPEG 압축 헬퍼
+function compressImage(file, maxWidth, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Canvas toBlob failed'));
+          }
+        }, 'image/jpeg', quality);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
 }
 
 // ==========================================
 // 8. 헬퍼 유틸리티 (모달 제어, 에스케이프, 토스트)
 // ==========================================
-
 function openModal(modal) {
   modal.classList.remove('hidden');
 }
@@ -582,7 +719,6 @@ function showToast(message, type = 'success') {
   container.appendChild(toast);
   lucide.createIcons();
 
-  // 3초 후 삭제
   setTimeout(() => {
     toast.style.animation = 'slideIn 0.3s reverse forwards';
     toast.addEventListener('animationend', () => toast.remove());
@@ -612,7 +748,7 @@ function removeUploadPreview() {
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
 
-  // 9-1. 모달 닫기 공통 처리
+  // 9-1. 모달 닫기
   document.querySelectorAll('.modal-close, .modal-overlay').forEach(el => {
     el.addEventListener('click', (e) => {
       if (e.target === el || el.classList.contains('modal-close')) {
@@ -657,7 +793,7 @@ document.addEventListener('DOMContentLoaded', () => {
       closeModal(document.getElementById('auth-modal'));
       loginForm.reset();
       showToast(`${currentUser.nickname}님, 환영합니다! 🐾`, 'success');
-      renderCatGrid(); // 로그인 후 피드 재생성
+      renderCatGrid();
     } else {
       showToast('아이디 또는 비밀번호가 틀렸습니다.', 'error');
     }
@@ -682,7 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('purr_accounts', JSON.stringify(accounts));
 
     showToast('회원가입이 완료되었습니다! 로그인 해주세요.', 'success');
-    tabLogin.click(); // 로그인 탭으로 전환
+    tabLogin.click();
     signupForm.reset();
   });
 
@@ -743,13 +879,11 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(isMuted ? '음소거되었습니다.' : '효과음이 켜졌습니다.', 'success');
   });
 
-  // 9-10. 매크로 확인 확인 버튼
+  // 9-10. 매크로 확인 버튼 클릭
   document.getElementById('macro-confirm-btn').addEventListener('click', () => {
     document.getElementById('macro-warning').classList.add('hidden');
-    lastPetTimes = []; // 타임스탬프 리셋
+    lastPetTimes = [];
   });
-
-  // (미니멀 UI 개편으로 버튼 클릭 쓰다듬기가 제외되어 드래그 입력만 처리합니다.)
 
   // 로고 누르면 맨 위로 스크롤
   document.getElementById('logo-btn').addEventListener('click', () => {
