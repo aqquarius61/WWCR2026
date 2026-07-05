@@ -334,27 +334,13 @@ function renderLeaderboard() {
 // 5. 쓰다듬기(Petting) 물리 엔진 & 매크로 탐지
 // ==========================================
 function setupPetInteraction(petZone, catId) {
-  let isDragging = false;
-  let lastX = 0;
-  let lastY = 0;
-  let distanceAccumulator = 0;
   let lastPetTriggerTime = 0;
 
   // 이미지 자체의 브라우저 기본 드래그 앤 드롭 기능 차단
   petZone.addEventListener('dragstart', (e) => e.preventDefault());
 
-  // 비로그인 유저가 단순 터치/클릭했을 때도 확실하게 로그인 창이 뜨도록 보강
+  // 터치/클릭했을 때 즉각 쓰다듬기 실행 (1회 클릭당 1 하트)
   petZone.addEventListener('click', (e) => {
-    if (!currentUser) {
-      e.preventDefault();
-      e.stopPropagation();
-      showToast('로그인이 필요한 기능입니다!', 'warning');
-      openModal(document.getElementById('auth-modal'));
-    }
-  });
-
-  // 마우스/터치 시작
-  petZone.addEventListener('pointerdown', (e) => {
     // 로그인 체크
     if (!currentUser) {
       e.preventDefault();
@@ -364,57 +350,23 @@ function setupPetInteraction(petZone, catId) {
       return;
     }
 
-    isDragging = true;
-    lastX = e.clientX;
-    lastY = e.clientY;
-    distanceAccumulator = 0;
-    petZone.releasePointerCapture(e.pointerId); // 캡처링 해제
-  });
-
-  // 드래그 진행 중 (문지르는 행위 감지)
-  petZone.addEventListener('pointermove', (e) => {
-    if (!isDragging) return;
-
-    const dx = e.clientX - lastX;
-    const dy = e.clientY - lastY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    distanceAccumulator += distance;
-    lastX = e.clientX;
-    lastY = e.clientY;
-
-    // 마우스를 70px 이상 문질렀을 때 쓰다듬기 1회 인정
-    if (distanceAccumulator >= 70) {
-      const now = Date.now();
-      
-      // 1. Throttling 매크로 검증
-      if (now - lastPetTriggerTime < PET_RATE_LIMIT_MS) {
-        distanceAccumulator = 0;
-        return;
-      }
-
-      // 2. 기계식 오토 마우스 패턴 분석
-      if (detectMacroPattern(now)) {
-        isDragging = false;
-        triggerMacroBlock();
-        return;
-      }
-
-      // 쓰다듬기 실행
-      triggerPet(catId, e.clientX, e.clientY);
-      lastPetTriggerTime = now;
-      distanceAccumulator = 0;
+    const now = Date.now();
+    
+    // 1. Throttling 매크로 검증 (클릭 간격 제한: 0.15초 이내 광클 방지)
+    if (now - lastPetTriggerTime < 150) {
+      return;
     }
+
+    // 2. 기계식 오토 마우스 패턴 분석 (간격 일정성 분석)
+    if (detectMacroPattern(now)) {
+      triggerMacroBlock();
+      return;
+    }
+
+    // 쓰다듬기 실행 (클릭 좌표 전달)
+    triggerPet(catId, e.clientX, e.clientY);
+    lastPetTriggerTime = now;
   });
-
-  const stopDragging = () => {
-    isDragging = false;
-    distanceAccumulator = 0;
-  };
-
-  petZone.addEventListener('pointerup', stopDragging);
-  petZone.addEventListener('pointerleave', stopDragging);
-  petZone.addEventListener('pointercancel', stopDragging);
 }
 
 // 5-1. 매크로 입력 차단 패턴 분석기
