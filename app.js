@@ -257,7 +257,7 @@ function renderCatGrid() {
         </div>
         <div class="pet-hint">
           <i data-lucide="sparkles"></i>
-          <span>문질러서 쓰다듬기</span>
+          <span>터치하여 쓰다듬기</span>
         </div>
       </div>
       <div class="cat-info">
