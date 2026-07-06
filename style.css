@@ -272,7 +272,7 @@ body {
   overflow: hidden;
   cursor: grab;
   user-select: none;
-  touch-action: none; /* 터치 디바이스 스크롤 간섭 방지 */
+  touch-action: pan-y; /* Y축 화면 스크롤 허용하여 모바일 스크롤 정상 작동화 */
   border-radius: 16px;
   background: transparent; /* 배경을 투명하게 설정하여 흰색 빈틈 노출 원천 차단 */
   border: 1px solid var(--border-glass);

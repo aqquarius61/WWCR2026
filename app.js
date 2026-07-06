@@ -332,12 +332,38 @@ function renderLeaderboard() {
 // ==========================================
 function setupPetInteraction(petZone, catId) {
   let lastPetTriggerTime = 0;
+  let startX = 0;
+  let startY = 0;
+  let isDragGesture = false;
 
   // 이미지 자체의 브라우저 기본 드래그 앤 드롭 기능 차단
   petZone.addEventListener('dragstart', (e) => e.preventDefault());
 
+  // 터치/마우스 시작 좌표 기록
+  petZone.addEventListener('pointerdown', (e) => {
+    startX = e.clientX;
+    startY = e.clientY;
+    isDragGesture = false;
+  });
+
+  // 터치/마우스 이동 거리 판정 (이동 거리가 10px 이상이면 드래그로 판정)
+  petZone.addEventListener('pointerup', (e) => {
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist >= 10) {
+      isDragGesture = true;
+    }
+  });
+
   // 터치/클릭했을 때 즉각 쓰다듬기 실행 (1회 클릭당 1 하트)
   petZone.addEventListener('click', (e) => {
+    // 0. 만약 모바일에서 스크롤(드래그) 동작이었다면 쓰다듬기 카운트 무시
+    if (isDragGesture) {
+      isDragGesture = false;
+      return;
+    }
+
     // 로그인 체크
     if (!currentUser) {
       e.preventDefault();
