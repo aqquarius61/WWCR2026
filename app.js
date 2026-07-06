@@ -15,6 +15,22 @@ let currentUser = null;
 let isMuted = false;
 let audioCtx = null;
 
+const REVIEW_COLUMN = 'state';
+const REVIEW_APPROVED = 'approved';
+const REVIEW_REJECTED = 'rejected';
+const REVIEW_PENDING = 'pending';
+const REVIEW_FINAL_STATES = new Set([REVIEW_APPROVED, REVIEW_REJECTED]);
+const REVIEW_POLL_INTERVAL_MS = 3000;
+const REVIEW_POLL_TIMEOUT_MS = 90000;
+
+function getReviewState(cat) {
+  return String(cat?.[REVIEW_COLUMN] || cat?.status || '').toLowerCase();
+}
+
+function isApprovedCat(cat) {
+  return getReviewState(cat) === REVIEW_APPROVED;
+}
+
 // 매크로 감지용 글로벌 변수
 const PET_RATE_LIMIT_MS = 250; // 쓰다듬기 입력간 최소 간격 (Throttling)
 let lastPetTimes = []; // 최근 쓰다듬기 타임스탬프 리스트 (속도 분석용)
@@ -61,6 +77,7 @@ async function fetchCats() {
     const { data, error } = await supabase
       .from('cats')
       .select('*')
+      .eq(REVIEW_COLUMN, REVIEW_APPROVED)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -117,24 +134,39 @@ function setupRealtimeSubscription() {
       const oldRow = payload.old;
 
       if (eventType === 'INSERT') {
-        // 이미 들어와있는 고양이가 아닐 때에만 앞에 삽입
-        if (!cats.some(c => c.id === newRow.id)) {
+        // 승인된 고양이만 공개 목록에 반영
+        if (isApprovedCat(newRow) && !cats.some(c => c.id === newRow.id)) {
           cats.unshift(newRow);
           renderCatGrid();
           renderLeaderboard();
         }
       } else if (eventType === 'UPDATE') {
-        const cat = cats.find(c => c.id === newRow.id);
-        if (cat) {
-          cat.pet_count = newRow.pet_count;
-          
-          // 숫자가 든 노드만 빠른 직접 업데이트 (성능 극대화)
-          const countEl = document.getElementById(`count-${newRow.id}`);
-          if (countEl) {
-            countEl.innerText = newRow.pet_count.toLocaleString();
+        const catIndex = cats.findIndex(c => c.id === newRow.id);
+        const cat = catIndex >= 0 ? cats[catIndex] : null;
+
+        if (isApprovedCat(newRow)) {
+          if (cat) {
+            const previousReviewState = getReviewState(cat);
+            cats[catIndex] = { ...cat, ...newRow };
+
+            // 승인 상태가 그대로이고 하트 수만 바뀐 경우에는 숫자만 빠르게 갱신
+            if (previousReviewState === REVIEW_APPROVED) {
+              const countEl = document.getElementById(`count-${newRow.id}`);
+              if (countEl) {
+                countEl.innerText = newRow.pet_count.toLocaleString();
+              }
+            } else {
+              renderCatGrid();
+            }
+          } else {
+            cats.unshift(newRow);
+            renderCatGrid();
           }
-          
-          // 랭킹 판 업데이트
+
+          renderLeaderboard();
+        } else if (cat) {
+          cats.splice(catIndex, 1);
+          renderCatGrid();
           renderLeaderboard();
         }
       } else if (eventType === 'DELETE') {
@@ -251,8 +283,8 @@ function renderCatGrid() {
 
   // 활성 묘종 필터 및 텍스트 검색 동시 적용
   const filteredCats = cats.filter(cat => {
-    // 거절된 고양이는 무조건 노출 제외
-    if (cat.state === 'rejected') return false;
+    // 공개 사진 목록에는 승인된 고양이만 노출
+    if (!isApprovedCat(cat)) return false;
 
     // 1. 카테고리 칩 필터링
     let breedMatch = false;
@@ -273,18 +305,12 @@ function renderCatGrid() {
     const breedSearchMatch = cat.breed && cat.breed.toLowerCase().includes(q);
     const textMatch = q === '' || nameMatch || breedSearchMatch;
 
-    // 3. AI 승인 완료 상태 또는 '본인이 올린 대기중인 고양이'만 조회 가능
-    const isApproved = cat.state === 'approved';
-    const isMine = currentUser && cat.owner === currentUser.username;
-    const isPendingMine = cat.state === 'pending' && isMine;
-    const isAllowedState = isApproved || isPendingMine;
-
-    return breedMatch && textMatch && isAllowedState;
+    return breedMatch && textMatch;
   });
 
   filteredCats.forEach(cat => {
     const card = document.createElement('div');
-    const isPending = cat.state === 'pending';
+    const isPending = getReviewState(cat) === REVIEW_PENDING;
     
     card.className = `cat-card ${isPending ? 'pending-card' : ''}`;
     card.dataset.id = cat.id;
@@ -326,8 +352,10 @@ function renderCatGrid() {
 
 // 4-2. 실시간 랭킹 보드 렌더링 (Podium + List)
 function renderLeaderboard() {
-  // 복사본을 만들어 점수 내림차순 정렬
-  const sorted = [...cats].sort((a, b) => b.pet_count - a.pet_count);
+  // 승인된 사진만 점수 내림차순 정렬
+  const sorted = cats
+    .filter(isApprovedCat)
+    .sort((a, b) => b.pet_count - a.pet_count);
   
   // 1, 2, 3위 포디움 렌더링
   const podiumContainer = document.getElementById('ranking-podium');
@@ -429,7 +457,7 @@ function setupPetInteraction(petZone, catId) {
 
     // 0-1. AI 대기 중 상태의 고양이는 쓰다듬기 제한
     const cat = cats.find(c => c.id === catId);
-    if (cat && cat.state === 'pending') {
+    if (cat && getReviewState(cat) === REVIEW_PENDING) {
       showToast('AI 판독 대기 중인 고양이는 쓰다듬을 수 없습니다! ⏳', 'warning');
       return;
     }
@@ -666,7 +694,7 @@ async function handleCatUpload(e) {
       id: 'cat_' + Date.now(),
       name: nameInput.value.trim(),
       breed: breedSelect ? breedSelect.value : '기타',
-      state: 'pending', // 신규 업로드는 AI 검증 대기 상태(pending)로 등록
+      [REVIEW_COLUMN]: REVIEW_PENDING, // 신규 업로드는 AI 검증 대기 상태로 등록
       image_url: publicUrl,
       pet_count: 0,
       owner: currentUser.username
@@ -683,14 +711,61 @@ async function handleCatUpload(e) {
     removeUploadPreview();
     closeModal(document.getElementById('upload-modal'));
     
-    showToast(`${newCat.name} 고양이가 등록되었습니다! AI의 판독을 대기 중입니다. ⏳`, 'warning');
+    showToast(`${escapeHTML(newCat.name)} 고양이가 등록되었습니다! 승인되면 사진 목록에 표시됩니다. ⏳`, 'warning');
     
-    // 강제 조회 갱신
+    // 공개 목록은 승인된 사진만 다시 조회하고, 방금 올린 사진은 검수 결과를 별도로 확인
     await fetchCats();
+    monitorCatReviewResult(newCat.id, newCat.name);
   } catch (error) {
     console.error('고양이 업로드 실패:', error);
     showToast('등록 실패! Storage 버킷 설정이나 테이블 컬럼을 확인해 주세요.', 'error');
   }
+}
+
+async function monitorCatReviewResult(catId, catName) {
+  try {
+    const reviewState = await waitForCatReviewResult(catId);
+    const safeName = escapeHTML(catName);
+
+    if (reviewState === REVIEW_APPROVED) {
+      showToast(`${safeName} 사진이 승인되어 목록에 공개되었습니다!`, 'success');
+      await fetchCats();
+    } else if (reviewState === REVIEW_REJECTED) {
+      showToast(`${safeName} 사진이 반려되었습니다. 사진 목록에는 표시되지 않습니다.`, 'error');
+    } else {
+      showToast(`${safeName} 사진은 아직 검수 대기 중입니다. 승인되면 자동으로 공개됩니다.`, 'warning');
+    }
+  } catch (error) {
+    console.error('검수 상태 확인 실패:', error);
+    showToast('업로드는 완료되었지만 검수 상태 확인에 실패했습니다.', 'warning');
+  }
+}
+
+async function waitForCatReviewResult(catId) {
+  const deadline = Date.now() + REVIEW_POLL_TIMEOUT_MS;
+
+  while (Date.now() < deadline) {
+    const { data, error } = await supabase
+      .from('cats')
+      .select(`id, ${REVIEW_COLUMN}`)
+      .eq('id', catId)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    const reviewState = getReviewState(data);
+    if (REVIEW_FINAL_STATES.has(reviewState)) {
+      return reviewState;
+    }
+
+    await delay(REVIEW_POLL_INTERVAL_MS);
+  }
+
+  return REVIEW_PENDING;
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // Canvas 기반 이미지 리사이징 & JPEG 압축 헬퍼
