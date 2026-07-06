@@ -225,48 +225,55 @@ body {
   min-width: 0;
 }
 
-/* 바둑판 스타일 CSS Grid 레이아웃 */
+/* 핀터레스트/네이버 이미지 스타일 다이내믹 그리드 */
 .cat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  column-count: 4; /* 데스크톱 기준 4열로 오밀조밀하게 설정 */
+  column-gap: 16px;
   width: 100%;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
   .cat-grid {
-    grid-template-columns: repeat(2, 1fr);
+    column-count: 3;
   }
 }
-@media (max-width: 650px) {
+@media (max-width: 800px) {
   .cat-grid {
-    grid-template-columns: 1fr;
+    column-count: 2; /* 태블릿에서는 2열로 조절 */
+  }
+}
+@media (max-width: 500px) {
+  .cat-grid {
+    column-count: 2; /* 초소형 모바일에서도 2열로 오밀조밀하고 꽉 차게 조절 */
   }
   .main-layout {
-    padding: 16px;
+    padding: 12px;
   }
   .logo-text {
-    font-size: 0.95rem; /* 긴 로고명을 모바일에서 보완 */
+    font-size: 0.9rem;
   }
   .header-container {
-    padding: 10px 16px;
+    padding: 8px 12px;
   }
 }
 
 /* 4. 고양이 카드 스타일 (미니멀 화이트 버전) */
 .cat-card {
+  break-inside: avoid; /* 다단 레이아웃 분할 쪼개짐 방지 */
+  display: block;
   width: 100%;
+  margin-bottom: 16px;
   position: relative;
   background: transparent;
   border: none;
   box-shadow: none;
 }
 
-/* 쓰다듬기 캔버스 영역 (사진에 직접 액자와 테두리 씌우기) */
+/* 쓰다듬기 캔버스 영역 (사진 비율 가변형) */
 .pet-zone {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: auto; /* 고유 비율 이미지에 맞춰 높이 자동 조절 */
   overflow: hidden;
   cursor: grab;
   user-select: none;
@@ -290,8 +297,8 @@ body {
 
 .cat-image {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto; /* 고유 사진 비율 그대로 자동 획득 */
+  display: block; /* 아래쪽 미세 baseline 틈새 방지 */
   pointer-events: none;
   transition: var(--transition-smooth);
 }
