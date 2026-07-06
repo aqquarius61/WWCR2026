@@ -21,6 +21,10 @@ let lastPetTimes = []; // 최근 쓰다듬기 타임스탬프 리스트 (속도 
 const MACRO_CHECK_WINDOW = 10; // 분석할 최근 입력 개수
 const MACRO_THRESHOLD_SPEED = 8; // 초당 8회 초과 입력 시 차단
 
+// 카테고리 필터 및 실시간 검색용 상태 변수
+let activeBreed = 'all';
+let searchQuery = '';
+
 // ==========================================
 // 2. 초기 데이터 로드 및 Supabase 연동
 // ==========================================
@@ -45,6 +49,7 @@ async function initApp() {
   await fetchCats();
 
   updateAuthUI();
+  setupFilterEvents(); // 필터 및 검색 이벤트 바인딩 추가
   
   // Lucide 아이콘 렌더링
   lucide.createIcons();
@@ -79,6 +84,7 @@ async function seedDefaultCats() {
   const seedData = initialCats.map(cat => ({
     id: cat.id,
     name: cat.name,
+    breed: cat.breed || '기타', // 묘종 매핑 추가
     image_url: cat.image, // mapping
     pet_count: cat.petCount, // mapping
     owner: cat.owner
@@ -237,12 +243,36 @@ function playPurrSound() {
 // 4. UI 렌더링 (고양이 피드 & 랭킹)
 // ==========================================
 
-// 4-1. 핀터레스트 스타일 고양이 그리드 렌더링
+// 4-1. 다이내믹 고양이 그리드 렌더링 (필터 및 실시간 검색 적용)
 function renderCatGrid() {
   const grid = document.getElementById('cat-grid');
   grid.innerHTML = '';
 
-  cats.forEach(cat => {
+  // 활성 묘종 필터 및 텍스트 검색 동시 적용
+  const filteredCats = cats.filter(cat => {
+    // 1. 카테고리 칩 필터링
+    let breedMatch = false;
+    if (activeBreed === 'all') {
+      breedMatch = true;
+    } else if (activeBreed === '기타') {
+      // 지정된 주요 묘종이 아니면 기타로 분류
+      const mainBreeds = ['코리안 숏헤어', '러시안 블루', '샴', '페르시안', '브리티시 숏헤어'];
+      breedMatch = !cat.breed || cat.breed.includes('기타') || !mainBreeds.some(mb => cat.breed.includes(mb));
+    } else {
+      // 주요 묘종 부분 일치 감지 (예: '코리안 숏헤어 (치즈 태비)' -> '코리안 숏헤어' 매칭)
+      breedMatch = cat.breed && cat.breed.includes(activeBreed);
+    }
+
+    // 2. 실시간 텍스트 검색 (이름 또는 묘종 대상)
+    const q = searchQuery.toLowerCase().trim();
+    const nameMatch = cat.name.toLowerCase().includes(q);
+    const breedSearchMatch = cat.breed && cat.breed.toLowerCase().includes(q);
+    const textMatch = q === '' || nameMatch || breedSearchMatch;
+
+    return breedMatch && textMatch;
+  });
+
+  filteredCats.forEach(cat => {
     const card = document.createElement('div');
     card.className = 'cat-card';
     card.dataset.id = cat.id;
@@ -600,9 +630,11 @@ async function handleCatUpload(e) {
     const publicUrl = urlData.publicUrl;
 
     // 4. Supabase DB 'cats' 테이블에 새로운 고양이 행 삽입
+    const breedSelect = document.getElementById('cat-breed');
     const newCat = {
       id: 'cat_' + Date.now(),
       name: nameInput.value.trim(),
+      breed: breedSelect ? breedSelect.value : '기타',
       image_url: publicUrl,
       pet_count: 0,
       owner: currentUser.username
@@ -880,3 +912,31 @@ document.addEventListener('DOMContentLoaded', () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 });
+
+// ==========================================
+// 10. 카테고리 필터 및 실시간 검색 이벤트
+// ==========================================
+function setupFilterEvents() {
+  const chipsContainer = document.getElementById('category-chips');
+  const searchInput = document.getElementById('breed-search-input');
+
+  if (chipsContainer) {
+    chipsContainer.addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+
+      chipsContainer.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+
+      activeBreed = chip.dataset.breed;
+      renderCatGrid();
+    });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderCatGrid();
+    });
+  }
+}

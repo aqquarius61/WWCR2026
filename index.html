@@ -48,6 +48,23 @@
   <main class="main-layout">
     <!-- 고양이 피드 섹션 (Pinterest 스타일 Masonry) -->
     <section class="feed-section">
+      <!-- 필터 및 검색 컨트롤 영역 -->
+      <div class="filter-search-container">
+        <div class="category-chips" id="category-chips">
+          <button class="chip active" data-breed="all">전체</button>
+          <button class="chip" data-breed="코리안 숏헤어">코리안 숏헤어</button>
+          <button class="chip" data-breed="러시안 블루">러시안 블루</button>
+          <button class="chip" data-breed="샴">샴</button>
+          <button class="chip" data-breed="페르시안">페르시안</button>
+          <button class="chip" data-breed="브리티시 숏헤어">브리티시 숏헤어</button>
+          <button class="chip" data-breed="기타">기타</button>
+        </div>
+        <div class="search-box">
+          <i data-lucide="search" class="search-icon"></i>
+          <input type="text" id="breed-search-input" placeholder="고양이 종류나 이름 검색...">
+        </div>
+      </div>
+
       <div id="cat-grid" class="cat-grid">
         <!-- JS로 고양이 카드들이 렌더링됨 -->
       </div>
@@ -182,8 +199,15 @@
 
           <div class="form-group">
             <label for="cat-breed">고양이 품종</label>
-            <div class="input-wrapper">
-              <input type="text" id="cat-breed" placeholder="예: 코리안 숏헤어, 페르시안 (선택사항)" maxlength="20">
+            <div class="select-wrapper">
+              <select id="cat-breed" class="select-field" required>
+                <option value="코리안 숏헤어">코리안 숏헤어</option>
+                <option value="러시안 블루">러시안 블루</option>
+                <option value="샴">샴</option>
+                <option value="페르시안">페르시안</option>
+                <option value="브리티시 숏헤어">브리티시 숏헤어</option>
+                <option value="기타" selected>기타</option>
+              </select>
             </div>
           </div>
 

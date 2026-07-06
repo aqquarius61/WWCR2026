@@ -946,3 +946,139 @@ body {
   0% { transform: translateY(30px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
 }
+
+/* ==========================================
+   11. 필터 및 실시간 검색 컨트롤 스타일
+   ========================================== */
+.filter-search-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-glass);
+  padding: 12px 20px;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+/* 카테고리 칩 필터 바 */
+.category-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: none; /* 파이어폭스 스크롤바 감춤 */
+  -ms-overflow-style: none; /* IE/에지 스크롤바 감춤 */
+  flex: 1;
+}
+.category-chips::-webkit-scrollbar {
+  display: none; /* 크롬/사파리/웹킷 스크롤바 감춤 */
+}
+.chip {
+  background: #f1f3f5;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+  user-select: none;
+}
+.chip:hover {
+  background: #e9ecef;
+  color: var(--text-primary);
+}
+.chip.active {
+  background: var(--text-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 실시간 검색 상자 */
+.search-box {
+  position: relative;
+  width: 280px;
+  display: flex;
+  align-items: center;
+}
+.search-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--text-muted);
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+#breed-search-input {
+  width: 100%;
+  padding: 10px 14px 10px 38px;
+  border-radius: 30px;
+  border: 1px solid var(--border-glass);
+  background: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+#breed-search-input:focus {
+  outline: none;
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px rgba(134, 68, 255, 0.15);
+}
+
+/* 드롭다운 셀렉트 박스 스타일 */
+.select-wrapper {
+  position: relative;
+  width: 100%;
+}
+.select-field {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+  background: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  appearance: none; /* 브라우저 기본 드롭다운 화살표 제거 */
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+.select-field:focus {
+  outline: none;
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px rgba(134, 68, 255, 0.15);
+}
+/* 드롭다운 선택 화살표 커스텀 */
+.select-wrapper::after {
+  content: '▼';
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* 반응형 스타일 조정 */
+@media (max-width: 768px) {
+  .filter-search-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  .search-box {
+    width: 100%;
+  }
+}
