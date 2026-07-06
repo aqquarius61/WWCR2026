@@ -85,6 +85,7 @@ async function seedDefaultCats() {
     id: cat.id,
     name: cat.name,
     breed: cat.breed || '기타', // 묘종 매핑 추가
+    state: cat.state || 'approved', // AI 검증 상태 매핑 추가
     image_url: cat.image, // mapping
     pet_count: cat.petCount, // mapping
     owner: cat.owner
@@ -250,6 +251,9 @@ function renderCatGrid() {
 
   // 활성 묘종 필터 및 텍스트 검색 동시 적용
   const filteredCats = cats.filter(cat => {
+    // 거절된 고양이는 무조건 노출 제외
+    if (cat.state === 'rejected') return false;
+
     // 1. 카테고리 칩 필터링
     let breedMatch = false;
     if (activeBreed === 'all') {
@@ -269,26 +273,46 @@ function renderCatGrid() {
     const breedSearchMatch = cat.breed && cat.breed.toLowerCase().includes(q);
     const textMatch = q === '' || nameMatch || breedSearchMatch;
 
-    return breedMatch && textMatch;
+    // 3. AI 승인 완료 상태 또는 '본인이 올린 대기중인 고양이'만 조회 가능
+    const isApproved = cat.state === 'approved';
+    const isMine = currentUser && cat.owner === currentUser.username;
+    const isPendingMine = cat.state === 'pending' && isMine;
+    const isAllowedState = isApproved || isPendingMine;
+
+    return breedMatch && textMatch && isAllowedState;
   });
 
   filteredCats.forEach(cat => {
     const card = document.createElement('div');
-    card.className = 'cat-card';
+    const isPending = cat.state === 'pending';
+    
+    card.className = `cat-card ${isPending ? 'pending-card' : ''}`;
     card.dataset.id = cat.id;
 
     card.innerHTML = `
       <div class="pet-zone" data-id="${cat.id}">
         <img src="${cat.image_url}" class="cat-image" alt="${cat.name}" draggable="false">
+        
         <!-- 이름 플로팅 뱃지 (왼쪽 아래) -->
         <div class="cat-name-badge">
           <span class="cat-card-name">${escapeHTML(cat.name)}</span>
         </div>
+        
         <!-- 하트 수 플로팅 뱃지 (오른쪽 아래) -->
         <div class="pet-badge">
           <i data-lucide="heart" class="heart-icon"></i>
           <span class="pet-stat-count" id="count-${cat.id}">${cat.pet_count.toLocaleString()}</span>
         </div>
+
+        <!-- 본인 화면에만 나타나는 AI 대기 상태 뱃지 (오버레이) -->
+        ${isPending ? `
+        <div class="pending-overlay">
+          <div class="pending-badge">
+            <i data-lucide="loader" class="animate-spin"></i>
+            <span>AI 판독 대기중 ⏳</span>
+          </div>
+        </div>
+        ` : ''}
       </div>
     `;
 
@@ -400,6 +424,13 @@ function setupPetInteraction(petZone, catId) {
       e.stopPropagation();
       showToast('로그인이 필요한 기능입니다!', 'warning');
       openModal(document.getElementById('auth-modal'));
+      return;
+    }
+
+    // 0-1. AI 대기 중 상태의 고양이는 쓰다듬기 제한
+    const cat = cats.find(c => c.id === catId);
+    if (cat && cat.state === 'pending') {
+      showToast('AI 판독 대기 중인 고양이는 쓰다듬을 수 없습니다! ⏳', 'warning');
       return;
     }
 
@@ -635,6 +666,7 @@ async function handleCatUpload(e) {
       id: 'cat_' + Date.now(),
       name: nameInput.value.trim(),
       breed: breedSelect ? breedSelect.value : '기타',
+      state: 'pending', // 신규 업로드는 AI 검증 대기 상태(pending)로 등록
       image_url: publicUrl,
       pet_count: 0,
       owner: currentUser.username
@@ -651,7 +683,7 @@ async function handleCatUpload(e) {
     removeUploadPreview();
     closeModal(document.getElementById('upload-modal'));
     
-    showToast(`${newCat.name} 고양이가 실시간 광장에 등록되었습니다! 🎉`, 'success');
+    showToast(`${newCat.name} 고양이가 등록되었습니다! AI의 판독을 대기 중입니다. ⏳`, 'warning');
     
     // 강제 조회 갱신
     await fetchCats();
