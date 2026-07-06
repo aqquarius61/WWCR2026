@@ -232,19 +232,14 @@ body {
   width: 100%;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 900px) {
   .cat-grid {
     column-count: 3;
   }
 }
-@media (max-width: 800px) {
+@media (max-width: 650px) {
   .cat-grid {
-    column-count: 2; /* 태블릿에서는 2열로 조절 */
-  }
-}
-@media (max-width: 500px) {
-  .cat-grid {
-    column-count: 2; /* 초소형 모바일에서도 2열로 오밀조밀하고 꽉 차게 조절 */
+    column-count: 2; /* 화면이 더 작아지면 2열로 오밀조밀하게 조절 */
   }
   .main-layout {
     padding: 12px;
