@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://aqquarius61.github.io/WWCR2026/sitemap.xml
