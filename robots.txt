@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://aqquarius61.github.io/WWCR2026/sitemap.xml
+Sitemap: https://wwcr2026.github.io/WWCR2026/sitemap.xml
